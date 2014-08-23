@@ -1,0 +1,255 @@
+* 03:32 lein new clojureintro
+
+#+NAME: project.clj
+#+begin_src clojure
+(defproject clojureintro "0.1.0-SNAPSHOT"
+  :dependencies [[org.clojure/clojure "1.6.0"]]
+  :main clojureintro.core)
+#+end_src
+
+#+NAME: src/clojureintro/core.clj
+#+begin_src clojure
+(ns clojureintro.core)
+
+(defn -main []
+  (println "Hello, World"))
+#+end_src
+
+* 04:27 bakery dependency
+
+#+NAME: project.clj
+#+begin_src clojure
+(defproject clojureintro "0.1.0-SNAPSHOT"
+  :dependencies [[org.clojure/clojure "1.6.0"]
+                 [bakery/bakery "0.0.4"]]
+  :main clojureintro.core)
+#+end_src
+
+#+NAME: src/clojureintro/core.clj
+#+begin_src clojure
+(ns clojureintro.core
+  (:use bakery.core))
+
+;; ---- insert video1-solution.clj ----
+
+(defn -main []
+  (bake-cake)
+  (bake-cookies))
+#+end_src
+
+* 05:24 rest arguments
+#+begin_src clojure
+(defn my-function [& rs]
+   (println rs))
+#+end_src
+* 06:30 warm-up - error
+
+** before
+#+begin_src clojure
+(do
+  (println "This function only works on squeezed ingredients."
+           "You asked me to squeeze" ingredient)
+  :error)
+#+end_src
+
+** after
+#+begin_src clojure
+(error "This function only works on squeezed ingredients."
+       "You asked me to squeeze" ingredient)
+#+end_src
+
+** Solution
+#+begin_src clojure
+(defn error [& words]
+  (apply println words)
+  :error)
+#+end_src
+
+* 09:57 Exercise 1 - The Fridge
+#+begin_src clojure
+(def pantry-ingredients #{:flour :sugar})
+
+(defn from-pantry? [ingredient]
+  (contains? pantry-ingredients ingredient))
+#+end_src
+
+** Solution
+#+begin_src clojure
+(def fridge-ingredients #{:milk :egg  :butter})
+
+(defn from-fridge? [ingredient]
+  (contains? fridge-ingredients ingredient))
+#+end_src
+
+* 10:17 Exercise 2 - scooped? squeezed? and simple?
+** Solution
+#+begin_src clojure
+(def scooped-ingredients #{:milk :flour :sugar})
+(defn scooped? [ingredient]
+  (contains? scooped-ingredients ingredient))
+
+(def squeezed-ingredients #{:egg})
+(defn squeezed? [ingredient]
+  (contains? squeezed-ingredients ingredient))
+
+(def simple-ingredients #{:butter})
+(defn simple? [ingredient]
+  (contains? simple-ingredients ingredient))
+#+end_src
+
+* 12:42 Exercise 3 - fetch-ingredient
+
+#+begin_src clojure
+(defn fetch-from-pantry
+  ([ingredient]
+     (fetch-from-pantry ingredient 1))
+  ([ingredient amount]
+     (if (from-pantry? ingredient)
+       (do
+         (go-to :pantry)
+         (dotimes [i amount]
+           (load-up ingredient))
+         (go-to :prep-area)
+         (dotimes [i amount]
+           (unload ingredient)))
+       (error "fetch-from-pantry cannot fetch" ingredient))))
+
+(defn fetch-from-fridge
+  ([ingredient]
+     (fetch-from-fridge ingredient 1))
+  ([ingredient amount]
+     (if (from-fridge? ingredient)
+       (do
+         (go-to :fridge)
+         (dotimes [i amount]
+           (load-up ingredient))
+         (go-to :prep-area)
+         (dotimes [i amount]
+           (unload ingredient)))
+       (error "fetch-from-fridge cannot fetch" ingredient))))
+#+end_src
+
+** Solution
+#+begin_src clojure
+(defn fetch-ingredient
+  ([ingredient]
+     (fetch-ingredient ingredient 1))
+  ([ingredient amount]
+     (cond
+      (from-pantry? ingredient)
+      (fetch-from-pantry ingredient amount)
+
+      (from-fridge? ingredient)
+      (fetch-from-fridge ingredient amount)
+
+      :else
+      (error "I don't know how to fetch" ingredient))))
+#+end_src
+* 23:24 fetch-list
+#+begin_src clojure
+(defn load-up-amount [ingredient amount]
+  (dotimes [i amount]
+    (load-up ingredient)))
+
+(defn unload-amount [ingredient amount]
+  (dotimes [i amount]
+    (unload ingredient)))
+
+(defn fetch-list [shopping-list]
+  (doseq [[location ingredients] {:pantry pantry-ingredients
+                                  :fridge fridge-ingredients}]
+    (go-to location)
+    (doseq [ingredient ingredients]
+      (load-up-amount ingredient (shopping-list ingredient 0))))
+  (go-to :prep-area)
+  (doseq [[ingredient amount] shopping-list]
+    (unload-amount ingredient amount)))
+#+end_src
+* 24:47 Exercise 4 - day-at-the-bakery
+
+** Order structure
+#+begin_src clojure
+{:orderid 1472
+ :address "790 Cyber Dr"
+ :items {:cake 22
+         :cookies 10}}
+#+end_src clojure
+
+** Delivery structure
+#+begin_src clojure
+{:orderid 1472
+ :address "790 Cyber Dr"
+ :rack-ids [:cooling-rack-3883]}
+#+end_src
+
+** Solution
+#+begin_src clojure
+(defn day-at-the-bakery []
+  (doseq [order (get-morning-orders)]
+    (dotimes [n (:cake (:items order))]
+      (fetch-list {:egg 2 :flour 2 :milk 1 :sugar 1})
+      (delivery {:orderid (:orderid order)
+                 :address (:address order)
+                 :rack-ids [(bake-cake)]}))
+    (dotimes [n (:cookies (:items order))]
+      (fetch-list {:egg 1 :flour 1 :butter 1 :sugar 1})
+      (delivery {:orderid (:orderid order)
+                 :address (:address order)
+                 :rack-ids [(bake-cookies)]}))))
+#+end_src
+* 25:50 Exercise 5 - Problems
+  no code
+* 28:07 Exercise 6 - add-ingredients
+** Solution
+#+begin_src clojure
+(defn add-ingredients [ingredients1 ingredients2]
+  (merge-with + ingredients1 ingredients2))
+#+end_src
+
+* 29:27 REPL exploration
+#+begin_src clojure
+(into {} [[:x 5] [:x 2] [:x 5]])
+(into {:x 5} [[:x 1] [:y 7]])
+#+end_src
+* 30:27 Exercise 7 - multiply-ingredient
+** Solution
+#+begin_src clojure
+(defn multiply-ingredients [n ingredients]
+  (into {}
+    (for [[ingredient amount] ingredients]
+            [ingredient (* n amount)])))
+#+end_src
+* 31:01 Exercise 8 - order->ingredients
+#+begin_src clojure
+(def cake-ingredients   {:egg 2 :flour 2 :milk 1 :sugar 1})
+(def cookie-ingredients {:egg 1 :flour 1 :butter 1 :sugar 1})
+
+;; to test
+(def an-order (first (get-morning-orders))
+(order->ingredients an-order)
+#+end_src
+
+** Solution
+#+begin_src clojure
+(defn order->ingredients [order]
+  (add-ingredients
+   (multiply-ingredients (:cake (:items order) 0)
+                         cake-ingredients)
+   (multiply-ingredients (:cookies (:items order) 0)
+                         cookie-ingredients)))
+#+end_src
+
+* 33:34 Exercise 9 - orders->ingredients
+#+begin_src clojure
+(orders->ingredients (get-morning-orders))
+#+end_src
+
+** Solution
+#+begin_src clojure
+(defn orders->ingredients [orders]
+  (reduce add-ingredients (map order->ingredients orders)))
+#+end_src
+
+* Exercise 10 -
+
+
